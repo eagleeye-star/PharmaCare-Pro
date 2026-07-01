@@ -124,6 +124,19 @@ function printReceipt(sale, drugs, settings) {
 export default function PharmacyApp() {
   // LICENSE
   const [licensed, setLicensed] = useState(() => LS.get("pharma_licensed", false));
+  // ── Auto-activate from portal launch URL ──────────────────────────────
+  useEffect(() => {
+    const urlKey = new URLSearchParams(window.location.search).get('key');
+    if (urlKey && !licensed) {
+      const k = urlKey.toUpperCase().trim();
+      if (/^[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(k)) {
+        LS.set("pharma_licensed", true);
+        LS.set("pharma_licence_key", k);
+        setLicensed(true);
+        window.history.replaceState({},document.title,window.location.pathname);
+      }
+    }
+  }, []);
   const [licInput, setLicInput] = useState("");
   const [licError, setLicError] = useState("");
 

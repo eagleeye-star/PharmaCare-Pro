@@ -118,6 +118,7 @@ function printReceipt(sale, drugs, settings) {
 export default function PharmacyApp() {
   // LICENSE
   const [licensed, setLicensed] = useState(() => LS.get("pharma_licensed", false));
+  const [showReset, setShowReset] = useState(false);
   // ── Auto-activate from portal launch URL ──────────────────────────────
   useEffect(() => {
     const urlKey = new URLSearchParams(window.location.search).get('key');
@@ -341,6 +342,18 @@ export default function PharmacyApp() {
         {page === "settings" && <Settings settings={settings} setSettings={setSettings} showToast={showToast} pinSetup={pinSetup} setPinSetup={setPinSetup} />}
         {page === "backup" && <PharmaBackup drugs={drugs} sales={sales} suppliers={suppliers} patients={patients} settings={settings} onRestore={d => { if(d.drugs) setDrugs(d.drugs); if(d.sales) setSales(d.sales); if(d.suppliers) setSuppliers(d.suppliers); if(d.patients) setPatients(d.patients); if(d.settings) setSettings(d.settings); }} showToast={showToast} />}
       </main>
+
+      {showReset&&(
+        <ResetModal
+          adminPin={LS.get("pharma_settings",{}).pin||settings?.pin||""}
+          accent="#00c896" cardBg="#0f2040"
+          onCancel={()=>setShowReset(false)}
+          onConfirm={()=>{
+            ["pharma_drugs","pharma_sales","pharma_suppliers","pharma_patients","pharma_settings","pharma_licensed","pharma_licence_key","pharma_pin_setup"].forEach(k=>localStorage.removeItem(k));
+            setShowReset(false); window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -383,7 +396,11 @@ function ResetModal({ onConfirm, onCancel, adminPin, accent, cardBg }) {
   const [pin,  setPin]  = useState("");
   const [err,  setErr]  = useState("");
   const [step, setStep] = useState(1);
-  const check = () => { if (pin !== String(adminPin)) { setErr("Incorrect PIN."); return; } setStep(2); };
+  const check = () => {
+    if (!adminPin) { setErr("No admin PIN set yet. Complete the setup wizard first."); return; }
+    if (pin !== String(adminPin)) { setErr("Incorrect PIN. Try again."); setPin(""); return; }
+    setStep(2);
+  };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
       <div style={{ background: cardBg||"#1f2330", border:"1px solid #ef444455", borderRadius:14, padding:28, width:"min(94vw,400px)" }}>

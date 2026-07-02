@@ -32,13 +32,7 @@ const CATEGORIES = ["Antibiotics","Analgesics","Antifungals","Antivirals","Vitam
 const UNITS = ["Tablet(s)","Capsule(s)","Bottle(s)","Sachet(s)","Vial(s)","Tube(s)","Ampoule(s)","Strip(s)","Piece(s)","ml","g","Other"];
 
 // ── SEED DATA ─────────────────────────────────────────────────────────────────
-const SEED_DRUGS = [
-  { id: uid(), name: "Amoxicillin 500mg", category: "Antibiotics", unit: "Capsule(s)", costPrice: 0.80, sellingPrice: 1.50, qty: 200, reorderLevel: 50, batchNo: "AMX-001", expiry: "2027-06-30", supplier: "PharmaCo Ghana", description: "Broad-spectrum antibiotic" },
-  { id: uid(), name: "Paracetamol 500mg", category: "Analgesics", unit: "Tablet(s)", costPrice: 0.10, sellingPrice: 0.25, qty: 500, reorderLevel: 100, batchNo: "PAR-002", expiry: "2026-12-31", supplier: "GlaxoSmith Ghana", description: "Pain & fever relief" },
-  { id: uid(), name: "Metformin 500mg", category: "Diabetes", unit: "Tablet(s)", costPrice: 0.60, sellingPrice: 1.20, qty: 150, reorderLevel: 40, batchNo: "MET-003", expiry: "2027-03-31", supplier: "Dannex Ghana", description: "Type 2 diabetes management" },
-  { id: uid(), name: "Vitamin C 1000mg", category: "Vitamins & Supplements", unit: "Tablet(s)", costPrice: 0.40, sellingPrice: 0.90, qty: 300, reorderLevel: 60, batchNo: "VIC-004", expiry: "2027-09-30", supplier: "Kinapharma", description: "Immune booster" },
-  { id: uid(), name: "ORS Sachet", category: "Gastrointestinal", unit: "Sachet(s)", costPrice: 0.50, sellingPrice: 1.00, qty: 100, reorderLevel: 30, batchNo: "ORS-005", expiry: "2026-08-31", supplier: "UNICEF Supply", description: "Oral rehydration salts" },
-];
+const SEED_DRUGS = [];
 
 // ── ICONS (SVG inline) ────────────────────────────────────────────────────────
 const Icon = ({ name, size = 18, color = "currentColor" }) => {
@@ -355,6 +349,70 @@ export default function PharmacyApp() {
 // DASHBOARD
 // ══════════════════════════════════════════════════════════════════════════════
 // ─── BACKUP & RESTORE ────────────────────────────────────────────────────────
+
+// ── INSTITUTION HELPERS (Update 5) ───────────────────────────────────────────
+function loadInstitution(key) {
+  try { return JSON.parse(localStorage.getItem(key + "_inst")) || { name: "", address: "" }; } catch { return { name: "", address: "" }; }
+}
+function saveInstitution(key, inst) {
+  try { localStorage.setItem(key + "_inst", JSON.stringify(inst)); } catch {}
+}
+
+
+// ── LICENCE EXPIRY BANNER (Update 8) ─────────────────────────────────────────
+function ExpiryBanner({ expiry, phone }) {
+  if (!expiry || expiry === "—") return null;
+  const days = Math.ceil((new Date(expiry) - new Date()) / 86400000);
+  if (days > 30) return null;
+  const bg  = days <= 7 ? "#dc2626" : "#d97706";
+  const msg = days <= 0
+    ? `Licence has expired — contact ${phone||"0597147460"} to renew`
+    : days <= 7
+      ? `⚠ Licence expires in ${days} day${days!==1?"s":""} — renew immediately`
+      : `Licence expires in ${days} day${days!==1?"s":""} — contact ${phone||"0597147460"} to renew`;
+  return (
+    <div style={{ background: bg, color: "#fff", textAlign: "center", padding: "7px 16px", fontSize: 12, fontWeight: 700, letterSpacing: 0.3 }}>
+      {msg}
+    </div>
+  );
+}
+
+
+// ── RESET MODAL (Update 1) ───────────────────────────────────────────────────
+function ResetModal({ onConfirm, onCancel, adminPin, accent, cardBg }) {
+  const [pin,  setPin]  = useState("");
+  const [err,  setErr]  = useState("");
+  const [step, setStep] = useState(1);
+  const check = () => { if (pin !== String(adminPin)) { setErr("Incorrect PIN."); return; } setStep(2); };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+      <div style={{ background: cardBg||"#1f2330", border:"1px solid #ef444455", borderRadius:14, padding:28, width:"min(94vw,400px)" }}>
+        {step === 1 ? (<>
+          <div style={{ fontSize:18, fontWeight:800, color:"#ef4444", marginBottom:8 }}>🔐 Admin PIN Required</div>
+          <p style={{ fontSize:13, color:"#94a3b8", marginBottom:16 }}>Enter your admin PIN to access the reset function.</p>
+          <input type="password" inputMode="numeric" maxLength={6} value={pin}
+            onChange={e=>{setPin(e.target.value.replace(/\D/g,""));setErr("");}}
+            onKeyDown={e=>e.key==="Enter"&&check()} placeholder="••••" autoFocus
+            style={{ width:"100%", padding:12, background:"rgba(255,255,255,0.06)", border:`1.5px solid ${err?"#ef4444":"rgba(255,255,255,0.15)"}`, borderRadius:8, color:"#fff", fontSize:20, textAlign:"center", letterSpacing:6, outline:"none", boxSizing:"border-box", marginBottom:8, fontFamily:"inherit" }} />
+          {err && <div style={{ color:"#fca5a5", fontSize:12, marginBottom:8 }}>{err}</div>}
+          <div style={{ display:"flex", gap:10, marginTop:8 }}>
+            <button onClick={onCancel} style={{ flex:1, padding:"10px 0", background:"transparent", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, color:"#94a3b8", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+            <button onClick={check}    style={{ flex:1, padding:"10px 0", background:accent||"#2E86AB", color:"#fff", border:"none", borderRadius:8, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Verify PIN</button>
+          </div>
+        </>) : (<>
+          <div style={{ fontSize:18, fontWeight:800, color:"#ef4444", marginBottom:8 }}>⚠️ Confirm Full Reset</div>
+          <p style={{ fontSize:13, color:"#94a3b8", marginBottom:6, lineHeight:1.7 }}>This will <strong style={{ color:"#ef4444" }}>permanently delete ALL data</strong> in this app — records, settings, everything.</p>
+          <p style={{ fontSize:13, color:"#ef4444", fontWeight:700, marginBottom:20 }}>This cannot be undone.</p>
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={onCancel}  style={{ flex:1, padding:"10px 0", background:"transparent", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, color:"#94a3b8", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+            <button onClick={onConfirm} style={{ flex:1, padding:"10px 0", background:"#dc2626", color:"#fff", border:"none", borderRadius:8, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>Delete All Data</button>
+          </div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 function PharmaBackup({ drugs, sales, suppliers, patients, settings, onRestore, showToast }) {
   const [confirmRestore, setConfirmRestore] = useState(null);
   const fileRef = useRef(null);
